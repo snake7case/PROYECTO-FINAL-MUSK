@@ -2,12 +2,25 @@ class Sale:
     """Representa una venta individual."""
 
     def __init__(self, sale_id, client_id, product, category, amount, date):
-        self.sale_id = sale_id
-        self.client_id = client_id
+        self.sale_id = self._normalize_sale_id(sale_id)
+        self.client_id = int(client_id)
         self.product = product
         self.category = category
-        self.amount = amount
+        self.amount = float(amount)
         self.date = date
+
+    @staticmethod
+    def _normalize_sale_id(sale_id):
+        """Convierte ids como 'S1001' en un identificador entero reutilizable."""
+        if isinstance(sale_id, int):
+            return sale_id
+
+        sale_id_str = str(sale_id)
+        numeric_part = "".join(character for character in sale_id_str if character.isdigit())
+        if not numeric_part:
+            raise ValueError(f"El sale_id '{sale_id}' no contiene una parte numerica valida.")
+
+        return int(numeric_part)
 
     @classmethod
     def from_dict(cls, data):

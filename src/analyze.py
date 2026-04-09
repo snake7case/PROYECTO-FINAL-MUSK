@@ -6,13 +6,21 @@ import pandas as pd
 if __package__:
     from .client import Client
     from .client_collection import ClientCollection
-    from .functional_utils import high_spending_client_names
+    from .functional_utils import (
+        filter_sales_by_category,
+        filter_sales_by_client,
+        high_spending_client_names,
+    )
     from .sale import Sale
     from .sales_collection import SalesCollection
 else:
     from client import Client
     from client_collection import ClientCollection
-    from functional_utils import high_spending_client_names
+    from functional_utils import (
+        filter_sales_by_category,
+        filter_sales_by_client,
+        high_spending_client_names,
+    )
     from sale import Sale
     from sales_collection import SalesCollection
 
@@ -69,8 +77,17 @@ def _normalize_sale_row(row):
 
 
 def _sale_count_for_client_in_category(sales_collection, client_id, category):
-    return sum(
-        1 for sale in sales_collection.sales_by_client(client_id) if sale.category == category
+    sales_in_category = filter_sales_by_category(sales_collection.sales, category)
+    return len(filter_sales_by_client(sales_in_category, client_id))
+
+
+def _top_client_in_category(client_collection, sales_collection, category):
+    return max(
+        client_collection,
+        key=lambda client: (
+            _sale_count_for_client_in_category(sales_collection, client.client_id, category),
+            -client.client_id,
+        ),
     )
 
 
@@ -104,14 +121,10 @@ def generate_report():
     client_collection = ClientCollection(clients)
     sales_collection = SalesCollection(sales)
 
-    top_client_in_reference_category = max(
+    top_client_in_reference_category = _top_client_in_category(
         client_collection,
-        key=lambda client: (
-            _sale_count_for_client_in_category(
-                sales_collection, client.client_id, REFERENCE_CATEGORY
-            ),
-            -client.client_id,
-        ),
+        sales_collection,
+        REFERENCE_CATEGORY,
     )
 
     client_reports = []
@@ -129,7 +142,9 @@ def generate_report():
             }
         )
 
-    # The project tests infer calculation 8 from the first client entry.
+    # El PDF pide calcular el cliente con mas ventas en una categoria concreta.
+    # El JSON final no reserva una clave para ello, asi que se conserva en la
+    # primera posicion de la lista de clientes, tal y como esperan los tests.
     client_reports.sort(
         key=lambda client_data: (
             client_data["client_id"] != top_client_in_reference_category.client_id,
